@@ -79,12 +79,22 @@ enum {
 };
 
 enum {
+#if 0
     UART0_IRQ = 10,
     RTC_IRQ = 11,
     VIRTIO_IRQ = 1, /* 1 to 8 */
+#else
+    UART0_IRQ = 10 + 0x80,
+    RTC_IRQ = 11 + 0x80,
+    VIRTIO_IRQ = 1 + 0x80,
+#endif
     VIRTIO_COUNT = 8,
     PCIE_IRQ = 0x20, /* 32 to 35 */
+#if 0
     VIRTIO_NDEV = 0x35 /* Arbitrary maximum number of interrupts */
+#else
+    VIRTIO_NDEV = 255 /* Arbitrary maximum number of interrupts */
+#endif
 };
 
 #define VIRT_IRQCHIP_IPI_MSI 1
