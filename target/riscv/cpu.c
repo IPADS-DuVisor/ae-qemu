@@ -710,6 +710,8 @@ static void riscv_cpu_set_irq(void *opaque, int irq, int level)
         case IRQ_VS_EXT:
         case IRQ_M_EXT:
              if (kvm_enabled()) {
+                if (irq != IRQ_S_EXT)
+                    break;
                 kvm_riscv_set_irq(cpu, irq, level);
              } else {
                 riscv_cpu_update_mip(cpu, 1 << irq, BOOL_TO_MASK(level));

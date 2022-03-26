@@ -432,15 +432,28 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
     };
 
     if (kvm_enabled()) {
+#if 0
         plic_cells = g_new0(uint32_t, s->soc[socket].num_harts * 2);
+#else
+        plic_cells = g_new0(uint32_t, s->soc[socket].num_harts * 6);
+#endif
     } else {
         plic_cells = g_new0(uint32_t, s->soc[socket].num_harts * 4);
     }
 
     for (cpu = 0; cpu < s->soc[socket].num_harts; cpu++) {
         if (kvm_enabled()) {
+#if 0
             plic_cells[cpu * 2 + 0] = cpu_to_be32(intc_phandles[cpu]);
             plic_cells[cpu * 2 + 1] = cpu_to_be32(IRQ_S_EXT);
+#else
+            plic_cells[cpu * 6 + 0] = cpu_to_be32(intc_phandles[cpu]);
+            plic_cells[cpu * 6 + 1] = cpu_to_be32(IRQ_M_EXT);
+            plic_cells[cpu * 6 + 2] = cpu_to_be32(intc_phandles[cpu]);
+            plic_cells[cpu * 6 + 3] = cpu_to_be32(IRQ_VS_EXT);
+            plic_cells[cpu * 6 + 4] = cpu_to_be32(intc_phandles[cpu]);
+            plic_cells[cpu * 6 + 5] = cpu_to_be32(IRQ_S_EXT);
+#endif
         } else {
             plic_cells[cpu * 4 + 0] = cpu_to_be32(intc_phandles[cpu]);
             plic_cells[cpu * 4 + 1] = cpu_to_be32(IRQ_M_EXT);
@@ -459,8 +472,13 @@ static void create_fdt_socket_plic(RISCVVirtState *s,
                                   (char **)&plic_compat,
                                   ARRAY_SIZE(plic_compat));
     qemu_fdt_setprop(mc->fdt, plic_name, "interrupt-controller", NULL, 0);
+#if 0
     qemu_fdt_setprop(mc->fdt, plic_name, "interrupts-extended",
         plic_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 4);
+#else
+    qemu_fdt_setprop(mc->fdt, plic_name, "interrupts-extended",
+        plic_cells, s->soc[socket].num_harts * sizeof(uint32_t) * 6);
+#endif
     qemu_fdt_setprop_cells(mc->fdt, plic_name, "reg",
         0x0, plic_addr, 0x0, memmap[VIRT_PLIC].size);
     qemu_fdt_setprop_cell(mc->fdt, plic_name, "riscv,ndev", VIRTIO_NDEV);

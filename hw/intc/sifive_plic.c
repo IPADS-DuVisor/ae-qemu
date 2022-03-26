@@ -118,7 +118,18 @@ static void sifive_plic_update(SiFivePLICState *plic)
             qemu_set_irq(plic->m_external_irqs[hartid - plic->hartid_base], level);
             break;
         case PLICMode_S:
+#if 0
             qemu_set_irq(plic->s_external_irqs[hartid - plic->hartid_base], level);
+#else
+            qemu_set_irq(plic->h_external_irqs[hartid - plic->hartid_base], level);
+#endif
+            break;
+        case PLICMode_H:
+#if 0
+            qemu_set_irq(plic->h_external_irqs[hartid - plic->hartid_base], level);
+#else
+            qemu_set_irq(plic->s_external_irqs[hartid - plic->hartid_base], level);
+#endif
             break;
         default:
             break;
@@ -250,6 +261,7 @@ static void sifive_plic_reset(DeviceState *dev)
     for (i = 0; i < s->num_harts; i++) {
         qemu_set_irq(s->m_external_irqs[i], 0);
         qemu_set_irq(s->s_external_irqs[i], 0);
+        qemu_set_irq(s->h_external_irqs[i], 0);
     }
 }
 
@@ -336,6 +348,9 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     s->enable = g_new0(uint32_t, s->num_enables);
 
     qdev_init_gpio_in(dev, sifive_plic_irq_request, s->num_sources);
+
+    s->h_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
+    qdev_init_gpio_out(dev, s->h_external_irqs, s->num_harts);
 
     s->s_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
     qdev_init_gpio_out(dev, s->s_external_irqs, s->num_harts);
@@ -451,21 +466,39 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
 
     plic = SIFIVE_PLIC(dev);
+#if 0
+    printf("%s:%d external_irqs m %p [0] %p\n\t h %p [0] %p\n\t s %p [0] %p\n",
+            __func__, __LINE__, plic->m_external_irqs, plic->m_external_irqs[0],
+            plic->h_external_irqs, plic->h_external_irqs[0],
+            plic->s_external_irqs, plic->s_external_irqs[0]);
+#endif
     for (i = 0; i < num_harts; i++) {
         CPUState *cpu = qemu_get_cpu(hartid_base + i);
 
         if (plic->addr_config[j].mode == PLICMode_M) {
             j++;
-            qdev_connect_gpio_out(dev, num_harts + i,
+            qdev_connect_gpio_out(dev, 2 * num_harts + i,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
         }
 
         if (plic->addr_config[j].mode == PLICMode_S) {
             j++;
-            qdev_connect_gpio_out(dev, i,
+            qdev_connect_gpio_out(dev, 1 * num_harts + i,
                                   qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
         }
+        
+        if (plic->addr_config[j].mode == PLICMode_H) {
+            j++;
+            qdev_connect_gpio_out(dev, 0 * num_harts + i,
+                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_VS_EXT));
+        }
     }
+#if 0
+    printf("%s:%d external_irqs m %p [0] %p\n\t h %p [0] %p\n\t s %p [0] %p\n",
+            __func__, __LINE__, plic->m_external_irqs, plic->m_external_irqs[0],
+            plic->h_external_irqs, plic->h_external_irqs[0],
+            plic->s_external_irqs, plic->s_external_irqs[0]);
+#endif
 
     return dev;
 }

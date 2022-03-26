@@ -53,7 +53,12 @@ char *riscv_plic_hart_config_string(int hart_count)
         CPURISCVState *env = &RISCV_CPU(cs)->env;
 
         if (kvm_enabled()) {
+#if 0
             vals[i] = "S";
+#else
+            /* FIXME: why MHS cannot work? (s_external_irqs[0] == NULL) */
+            vals[i] = "MSH";
+#endif
         } else if (riscv_has_ext(env, RVS)) {
             vals[i] = "MS";
         } else {
