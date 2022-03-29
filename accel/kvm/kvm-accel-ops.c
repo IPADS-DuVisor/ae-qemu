@@ -61,17 +61,29 @@ static void *kvm_vcpu_thread_fn(void *arg)
     return NULL;
 }
 
+static int nr_vcpu = 0;
+extern int hartid_to_cpuid[8];
 static void kvm_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
+    cpu_set_t my_set;
+    int cpuid;
 
     cpu->thread = g_malloc0(sizeof(QemuThread));
     cpu->halt_cond = g_malloc0(sizeof(QemuCond));
     qemu_cond_init(cpu->halt_cond);
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/KVM",
              cpu->cpu_index);
-    qemu_thread_create(cpu->thread, thread_name, kvm_vcpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE);
+    
+    CPU_ZERO(&my_set);
+    cpuid = hartid_to_cpuid[nr_vcpu];
+    printf("%s:%d >>> thread name %s, cpu_index %d, nr_vcpu %d, pin to CPU %d\n",
+            __func__, __LINE__, thread_name, cpu->cpu_index, nr_vcpu, cpuid);
+    CPU_SET((size_t)cpuid, &my_set);
+    nr_vcpu++;
+    
+    qemu_thread_create_with_affinity(cpu->thread, thread_name, kvm_vcpu_thread_fn,
+                       cpu, QEMU_THREAD_JOINABLE, &my_set);
 }
 
 static bool kvm_vcpu_thread_is_idle(CPUState *cpu)

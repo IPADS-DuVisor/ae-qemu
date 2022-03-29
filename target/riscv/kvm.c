@@ -512,8 +512,30 @@ void kvm_riscv_reset_vcpu(RISCVCPU *cpu)
     env->satp = 0;
 }
 
+void kvm_riscv_vplic_set_irq(RISCVCPU *cpu, int irq, int level)
+{
+    int ret;
+    unsigned virq = level ? irq : -irq;
+
+    if (irq < 0x80) {
+        printf("%s:%d WARN: kvm riscv set irq 0x%x < 0x80\n", __func__, __LINE__, irq);
+        return;
+#if 0
+        perror("kvm riscv set irq < 0x80\n");
+        abort();
+#endif
+    }
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_INTERRUPT, &virq);
+    if (ret < 0) {
+        perror("Set irq failed");
+        abort();
+    }
+}
+
 void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level)
 {
+#if 0
     int ret;
     unsigned virq = level ? KVM_INTERRUPT_SET : KVM_INTERRUPT_UNSET;
 
@@ -527,6 +549,7 @@ void kvm_riscv_set_irq(RISCVCPU *cpu, int irq, int level)
         perror("Set irq failed");
         abort();
     }
+#endif
 }
 
 bool kvm_arch_cpu_check_are_resettable(void)

@@ -2310,6 +2310,7 @@ bool kvm_dirty_ring_enabled(void)
     return kvm_state->kvm_dirty_ring_size ? true : false;
 }
 
+int hartid_to_cpuid[8] = {0};
 static int kvm_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -2369,6 +2370,13 @@ static int kvm_init(MachineState *ms)
         ret = -EINVAL;
         fprintf(stderr, "kvm version not supported\n");
         goto err;
+    }
+
+    for (int i = 0; i < 8; i++) {
+        int hartid = i;
+        hartid_to_cpuid[hartid] = kvm_ioctl(s, KVM_HARTID_TO_CPUID, &hartid);
+        printf("%s:%d hartid %d --> cpuid %d\n",
+                __func__, __LINE__, hartid, hartid_to_cpuid[hartid]);
     }
 
     kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);

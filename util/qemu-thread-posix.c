@@ -561,9 +561,9 @@ static void *qemu_thread_start(void *args)
     return r;
 }
 
-void qemu_thread_create(QemuThread *thread, const char *name,
+void qemu_thread_create_with_affinity(QemuThread *thread, const char *name,
                        void *(*start_routine)(void*),
-                       void *arg, int mode)
+                       void *arg, int mode, cpu_set_t *aff_set)
 {
     sigset_t set, oldset;
     int err;
@@ -593,6 +593,9 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     qemu_thread_args->start_routine = start_routine;
     qemu_thread_args->arg = arg;
 
+    if (aff_set)
+        pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), aff_set);
+
     err = pthread_create(&thread->thread, &attr,
                          qemu_thread_start, qemu_thread_args);
 
@@ -602,6 +605,13 @@ void qemu_thread_create(QemuThread *thread, const char *name,
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     pthread_attr_destroy(&attr);
+}
+
+void qemu_thread_create(QemuThread *thread, const char *name,
+                       void *(*start_routine)(void*),
+                       void *arg, int mode)
+{
+    qemu_thread_create_with_affinity(thread, name, start_routine, arg, mode, NULL);
 }
 
 void qemu_thread_get_self(QemuThread *thread)

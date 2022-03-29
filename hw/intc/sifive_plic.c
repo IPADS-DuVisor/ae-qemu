@@ -31,6 +31,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "sysemu/kvm.h"
+#include "target/riscv/kvm_riscv.h"
 
 static bool addr_between(uint32_t addr, uint32_t base, uint32_t num)
 {
@@ -118,6 +119,7 @@ static void sifive_plic_update(SiFivePLICState *plic)
             qemu_set_irq(plic->m_external_irqs[hartid - plic->hartid_base], level);
             break;
         case PLICMode_S:
+            /* FIXME: s/h_external_irqs are in wrong places to let the PLIC work */
 #if 0
             qemu_set_irq(plic->s_external_irqs[hartid - plic->hartid_base], level);
 #else
@@ -322,10 +324,16 @@ static void parse_hart_config(SiFivePLICState *plic)
 
 static void sifive_plic_irq_request(void *opaque, int irq, int level)
 {
+#if 0
     SiFivePLICState *s = opaque;
 
     sifive_plic_set_pending(s, irq, level > 0);
     sifive_plic_update(s);
+#else
+    SiFivePLICState *s = opaque;
+    RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(s->hartid_base));
+    kvm_riscv_vplic_set_irq(cpu, irq, level);
+#endif
 }
 
 static void sifive_plic_realize(DeviceState *dev, Error **errp)
