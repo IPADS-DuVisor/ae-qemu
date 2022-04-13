@@ -42,6 +42,7 @@
 #include "chardev/char-fe.h"
 #include "migration/migration.h"
 #include "sysemu/runstate.h"
+#include "hw/riscv/virt.h" // for VINTERRUPTS_IRQ_OFFSET
 
 static uint64_t kvm_riscv_reg_id(CPURISCVState *env, uint64_t type,
                                  uint64_t idx)
@@ -517,17 +518,20 @@ void kvm_riscv_vplic_set_irq(RISCVCPU *cpu, int irq, int level)
     int ret;
     unsigned virq = level ? irq : -irq;
 
-    if (irq < 0x80) {
-        printf("%s:%d WARN: kvm riscv set irq 0x%x < 0x80\n", __func__, __LINE__, irq);
+    if (irq < VINTERRUPTS_IRQ_OFFSET) {
+        printf("%s:%d WARN: kvm riscv set irq 0x%x < 0x%x\n",
+                __func__, __LINE__, irq, VINTERRUPTS_IRQ_OFFSET);
         return;
 #if 0
-        perror("kvm riscv set irq < 0x80\n");
+        perror("kvm riscv set irq < VINTERRUPTS_IRQ_OFFSET\n");
         abort();
 #endif
     }
 
     ret = kvm_vcpu_ioctl(CPU(cpu), KVM_INTERRUPT, &virq);
     if (ret < 0) {
+        printf("%s:%d ERROR: kvm riscv set irq failed 0x%x\n",
+                __func__, __LINE__, irq);
         perror("Set irq failed");
         abort();
     }

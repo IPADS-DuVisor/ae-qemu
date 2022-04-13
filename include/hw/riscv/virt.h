@@ -78,15 +78,16 @@ enum {
     VIRT_PCIE_ECAM
 };
 
+#define VINTERRUPTS_IRQ_OFFSET 0x10
 enum {
 #if 0
     UART0_IRQ = 10,
     RTC_IRQ = 11,
     VIRTIO_IRQ = 1, /* 1 to 8 */
 #else
-    UART0_IRQ = 10 + 0x80,
-    RTC_IRQ = 11 + 0x80,
-    VIRTIO_IRQ = 1 + 0x80,
+    UART0_IRQ = 10 + VINTERRUPTS_IRQ_OFFSET,
+    RTC_IRQ = 11 + VINTERRUPTS_IRQ_OFFSET,
+    VIRTIO_IRQ = 1 + VINTERRUPTS_IRQ_OFFSET,
 #endif
     VIRTIO_COUNT = 8,
     PCIE_IRQ = 0x20, /* 32 to 35 */
