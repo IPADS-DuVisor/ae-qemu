@@ -73,6 +73,7 @@ enum {
     VIRT_IMSIC_S,
     VIRT_FLASH,
     VIRT_DRAM,
+    VIRT_PCI_ISR,
     VIRT_PCIE_MMIO,
     VIRT_PCIE_PIO,
     VIRT_PCIE_ECAM

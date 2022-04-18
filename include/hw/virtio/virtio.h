@@ -76,12 +76,15 @@ enum virtio_device_endian {
     VIRTIO_DEVICE_ENDIAN_BIG,
 };
 
+#define PCI_ISR_SM
 struct VirtIODevice
 {
     DeviceState parent_obj;
     const char *name;
     uint8_t status;
     uint8_t isr;
+    uint8_t *pci_isr_ptr;
+    void *pci_proxy;
     uint16_t queue_sel;
     uint64_t guest_features;
     uint64_t host_features;

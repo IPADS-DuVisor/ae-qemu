@@ -1959,6 +1959,7 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
+uint8_t *pci_isr_sm = NULL;
 static void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     const bool noreserve = qemu_ram_is_noreserve(new_block);
@@ -1986,6 +1987,11 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
             new_block->host = qemu_anon_ram_alloc(new_block->max_length,
                                                   &new_block->mr->align,
                                                   shared, noreserve);
+            if (strcmp("riscv_virt_board.pci_isr", new_block->mr->name) == 0) {
+                pci_isr_sm = new_block->host;
+                printf("%s:%d pci_isr_sm %p, *pci_isr_sm(u8) %x\n",
+                        __func__, __LINE__, pci_isr_sm, *pci_isr_sm);
+            }
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
                                  "cannot set up guest memory '%s'",

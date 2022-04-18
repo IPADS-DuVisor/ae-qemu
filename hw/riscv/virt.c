@@ -87,6 +87,8 @@ static const MemMapEntry virt_memmap[] = {
     [VIRT_PCIE_ECAM] =   { 0x30000000,    0x10000000 },
     [VIRT_PCIE_MMIO] =   { 0x40000000,    0x40000000 },
     [VIRT_DRAM] =        { 0x80000000,           0x0 },
+    /* Assume DRAM range is limited to [2G, 18G) */
+    [VIRT_PCI_ISR] =     { 0x480000000,       0x1000 },
 };
 
 /* PCIe high mmio is fixed for RV32 */
@@ -1179,6 +1181,7 @@ static void virt_machine_init(MachineState *machine)
     const MemMapEntry *memmap = virt_memmap;
     RISCVVirtState *s = RISCV_VIRT_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion *pci_isr_mem = g_new(MemoryRegion, 1);
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
     char *soc_name;
     target_ulong start_addr = memmap[VIRT_DRAM].base;
@@ -1305,7 +1308,12 @@ static void virt_machine_init(MachineState *machine)
         virt_high_pcie_memmap.size = VIRT32_HIGH_PCIE_MMIO_SIZE;
     } else {
         virt_high_pcie_memmap.size = VIRT64_HIGH_PCIE_MMIO_SIZE;
+#if 0
         virt_high_pcie_memmap.base = memmap[VIRT_DRAM].base + machine->ram_size;
+#else
+        /* FIXME: maybe the HIHG_PCIE_MMIO_BASE must be GiB-aligned? */
+        virt_high_pcie_memmap.base = memmap[VIRT_PCI_ISR].base + 1 * GiB;
+#endif
         virt_high_pcie_memmap.base =
             ROUND_UP(virt_high_pcie_memmap.base, virt_high_pcie_memmap.size);
     }
@@ -1313,6 +1321,12 @@ static void virt_machine_init(MachineState *machine)
     /* register system main memory (actual RAM) */
     memory_region_add_subregion(system_memory, memmap[VIRT_DRAM].base,
         machine->ram);
+    
+    /* register PCI_ISR shared memory */
+    memory_region_init_ram(pci_isr_mem, NULL, "riscv_virt_board.pci_isr",
+                           memmap[VIRT_PCI_ISR].size, &error_fatal);
+    memory_region_add_subregion(system_memory, memmap[VIRT_PCI_ISR].base,
+        pci_isr_mem);
 
     /* create device tree */
     create_fdt(s, memmap, machine->ram_size, machine->kernel_cmdline,

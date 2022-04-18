@@ -36,6 +36,10 @@
  */
 #define VIRTIO_PCI_VRING_ALIGN         4096
 
+#ifdef PCI_ISR_SM
+extern uint8_t *pci_isr_sm;
+#endif
+
 typedef struct VRingDesc
 {
     uint64_t addr;
@@ -1995,7 +1999,11 @@ void virtio_reset(void *opaque)
     vdev->queue_sel = 0;
     vdev->status = 0;
     vdev->disabled = false;
+#ifndef PCI_ISR_SM
     qatomic_set(&vdev->isr, 0);
+#else
+    qatomic_set(vdev->pci_isr_ptr, 0);
+#endif
     vdev->config_vector = VIRTIO_NO_VECTOR;
     virtio_notify_vector(vdev, vdev->config_vector);
 
@@ -2407,6 +2415,7 @@ void virtio_del_queue(VirtIODevice *vdev, int n)
 
 static void virtio_set_isr(VirtIODevice *vdev, int value)
 {
+#ifndef PCI_ISR_SM
     uint8_t old = qatomic_read(&vdev->isr);
 
     /* Do not write ISR if it does not change, so that its cacheline remains
@@ -2415,6 +2424,16 @@ static void virtio_set_isr(VirtIODevice *vdev, int value)
     if ((old & value) != value) {
         qatomic_or(&vdev->isr, value);
     }
+#else
+    uint8_t old = qatomic_read(vdev->pci_isr_ptr);
+
+    /* Do not write ISR if it does not change, so that its cacheline remains
+     * shared in the common case where the guest does not read it.
+     */
+    if ((old & value) != value) {
+        qatomic_or(vdev->pci_isr_ptr, value);
+    }
+#endif
 }
 
 /* Called within rcu_read_lock(). */
@@ -2838,7 +2857,11 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     }
 
     qemu_put_8s(f, &vdev->status);
+#ifndef PCI_ISR_SM
     qemu_put_8s(f, &vdev->isr);
+#else
+    qemu_put_8s(f, vdev->pci_isr_ptr);
+#endif
     qemu_put_be16s(f, &vdev->queue_sel);
     qemu_put_be32s(f, &guest_features_lo);
     qemu_put_be32(f, vdev->config_len);
@@ -2988,7 +3011,11 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
 
     qemu_get_8s(f, &vdev->status);
+#ifndef PCI_ISR_SM
     qemu_get_8s(f, &vdev->isr);
+#else
+    qemu_get_8s(f, vdev->pci_isr_ptr);
+#endif
     qemu_get_be16s(f, &vdev->queue_sel);
     if (vdev->queue_sel >= VIRTIO_QUEUE_MAX) {
         return -1;
@@ -3225,7 +3252,14 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->started = false;
     vdev->device_id = device_id;
     vdev->status = 0;
+#ifndef PCI_ISR_SM
     qatomic_set(&vdev->isr, 0);
+#else
+    vdev->pci_isr_ptr = pci_isr_sm + vdev->device_id * sizeof(uint64_t) / sizeof(uint8_t);
+    printf("%s:%d vdev id %d, pci_isr_ptr %p\n", __func__, __LINE__,
+            vdev->device_id, vdev->pci_isr_ptr);
+    qatomic_set(vdev->pci_isr_ptr, 0);
+#endif
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
     vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_QUEUE_MAX);

@@ -47,6 +47,10 @@
  * configuration space */
 #define VIRTIO_PCI_CONFIG_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_enabled(dev))
 
+#ifdef PCI_ISR_SM
+extern uint8_t *pci_isr_sm;
+#endif
+
 static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtIOPCIProxy *dev);
 static void virtio_pci_reset(DeviceState *qdev);
@@ -74,7 +78,11 @@ static void virtio_pci_notify(DeviceState *d, uint16_t vector)
         msix_notify(&proxy->pci_dev, vector);
     else {
         VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+#ifndef PCI_ISR_SM
         pci_set_irq(&proxy->pci_dev, qatomic_read(&vdev->isr) & 1);
+#else
+        pci_set_irq(&proxy->pci_dev, qatomic_read(vdev->pci_isr_ptr) & 1);
+#endif
     }
 }
 
@@ -232,6 +240,11 @@ static int virtio_pci_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+#ifdef PCI_ISR_SM
+    vdev->pci_proxy = proxy;
+    printf("%s:%d vdev id %d, pci_proxy %p\n", __func__, __LINE__,
+            vdev->device_id, vdev->pci_proxy);
+#endif
     VirtQueue *vq = virtio_get_queue(vdev, n);
     bool legacy = virtio_pci_legacy(proxy);
     bool modern = virtio_pci_modern(proxy);
@@ -400,7 +413,12 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
         break;
     case VIRTIO_PCI_ISR:
         /* reading from the ISR also clears it. */
+#ifndef PCI_ISR_SM
         ret = qatomic_xchg(&vdev->isr, 0);
+#else
+        ret = qatomic_xchg(vdev->pci_isr_ptr, 0);
+#endif
+        printf("%s:%d VIRTIO_PCI_ISR ret %x\n", __func__, __LINE__, ret);
         pci_irq_deassert(&proxy->pci_dev);
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
@@ -1408,7 +1426,13 @@ static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
         return UINT64_MAX;
     }
 
+#ifndef PCI_ISR_SM
     val = qatomic_xchg(&vdev->isr, 0);
+#else
+    val = qatomic_xchg(vdev->pci_isr_ptr, 0);
+#endif
+    printf("%s:%d vdev id %d, proxy %p:%p\n", __func__, __LINE__,
+            vdev->device_id, proxy, vdev->pci_proxy);
     pci_irq_deassert(&proxy->pci_dev);
     return val;
 }
