@@ -1544,10 +1544,13 @@ static void pci_irq_handler(void *opaque, int irq_num, int level)
     if (!change)
         return;
 
+    /* update d->irq_state */
     pci_set_irq_state(pci_dev, irq_num, level);
+    /* update dev->config[PCI_STATUS] */
     pci_update_irq_status(pci_dev);
     if (pci_irq_disabled(pci_dev))
         return;
+    /* update bus->irq_count[irq_num] & bus->set_irq */
     pci_change_irq_level(pci_dev, irq_num, change);
 }
 

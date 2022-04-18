@@ -81,6 +81,9 @@ static void virtio_pci_notify(DeviceState *d, uint16_t vector)
 #ifndef PCI_ISR_SM
         pci_set_irq(&proxy->pci_dev, qatomic_read(&vdev->isr) & 1);
 #else
+        uint8_t isr_changed = qatomic_xchg(vdev->pci_isr_change_ptr, 0);
+        if (isr_changed)
+            pci_irq_deassert(&proxy->pci_dev);
         pci_set_irq(&proxy->pci_dev, qatomic_read(vdev->pci_isr_ptr) & 1);
 #endif
     }
@@ -240,11 +243,6 @@ static int virtio_pci_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
-#ifdef PCI_ISR_SM
-    vdev->pci_proxy = proxy;
-    printf("%s:%d vdev id %d, pci_proxy %p\n", __func__, __LINE__,
-            vdev->device_id, vdev->pci_proxy);
-#endif
     VirtQueue *vq = virtio_get_queue(vdev, n);
     bool legacy = virtio_pci_legacy(proxy);
     bool modern = virtio_pci_modern(proxy);
@@ -1431,8 +1429,7 @@ static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
 #else
     val = qatomic_xchg(vdev->pci_isr_ptr, 0);
 #endif
-    printf("%s:%d vdev id %d, proxy %p:%p\n", __func__, __LINE__,
-            vdev->device_id, proxy, vdev->pci_proxy);
+    printf("%s:%d vdev id %d\n", __func__, __LINE__, vdev->device_id);
     pci_irq_deassert(&proxy->pci_dev);
     return val;
 }

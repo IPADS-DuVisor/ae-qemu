@@ -3256,8 +3256,9 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     qatomic_set(&vdev->isr, 0);
 #else
     vdev->pci_isr_ptr = pci_isr_sm + vdev->device_id * sizeof(uint64_t) / sizeof(uint8_t);
-    printf("%s:%d vdev id %d, pci_isr_ptr %p\n", __func__, __LINE__,
-            vdev->device_id, vdev->pci_isr_ptr);
+    vdev->pci_isr_change_ptr = vdev->pci_isr_ptr + 4096 / 2 / sizeof(uint8_t);
+    printf("%s:%d vdev id %d, pci_isr_ptr %p, pci_isr_change_ptr %p\n", __func__, __LINE__,
+            vdev->device_id, vdev->pci_isr_ptr, vdev->pci_isr_change_ptr);
     qatomic_set(vdev->pci_isr_ptr, 0);
 #endif
     vdev->queue_sel = 0;
