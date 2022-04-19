@@ -83,8 +83,10 @@ struct VirtIODevice
     const char *name;
     uint8_t status;
     uint8_t isr;
+#ifdef PCI_ISR_SM
     uint8_t *pci_isr_ptr;
     uint8_t *pci_isr_change_ptr;
+#endif
     uint16_t queue_sel;
     uint64_t guest_features;
     uint64_t host_features;
