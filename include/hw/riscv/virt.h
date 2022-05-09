@@ -79,7 +79,7 @@ enum {
     VIRT_PCIE_ECAM
 };
 
-#define VINTERRUPTS_IRQ_OFFSET 0x10
+#define VINTERRUPTS_IRQ_OFFSET 10
 enum {
 #if 0
     UART0_IRQ = 10,

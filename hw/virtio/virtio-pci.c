@@ -1429,7 +1429,7 @@ static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
 #else
     val = qatomic_xchg(vdev->pci_isr_ptr, 0);
 #endif
-    printf("%s:%d vdev id %d\n", __func__, __LINE__, vdev->device_id);
+    //printf("%s:%d vdev id %d\n", __func__, __LINE__, vdev->device_id);
     pci_irq_deassert(&proxy->pci_dev);
     return val;
 }
